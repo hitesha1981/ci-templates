@@ -50,7 +50,7 @@ jobs:
             type=ref,event=tag,enable=true,suffix=
             # Use 'latest' for main/master branches
             type=raw,value=latest,enable={{isFeature main || isFeature master}}
-          flavor:
+          flavor: |
             # Replace '/' with '-' in branch names
             latest=false
             suffix=-{{branch}}
