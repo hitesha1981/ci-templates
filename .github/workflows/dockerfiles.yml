@@ -41,19 +41,16 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}
-          # Define rules for tags:
+          # Define rules for tags (use GitHub Actions expressions where needed):
           tags: |
+            # nightly schedule tag (if you use schedule dispatches)
             type=schedule,pattern=nightly
             # branch name will be used as a tag directly (e.g. feature_52)
-            type=ref,event=branch,enable=true,suffix=
+            type=ref,event=branch
             # tag name will be used as a tag directly (e.g. v1.0.0)
-            type=ref,event=tag,enable=true,suffix=
+            type=ref,event=tag
             # Use 'latest' for main/master branches
-            type=raw,value=latest,enable={{isFeature main || isFeature master}}
-          flavor: |
-            # Replace '/' with '-' in branch names
-            latest=false
-            suffix=-{{branch}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
