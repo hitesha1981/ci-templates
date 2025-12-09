@@ -1,2 +1,2 @@
 # ci-templates
-For github actions
+Template files for github action under all the repos.
