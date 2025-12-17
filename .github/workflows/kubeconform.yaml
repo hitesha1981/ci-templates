@@ -1,0 +1,77 @@
+name: Kubeconform & YAML Lint
+on:
+  workflow_call:
+    inputs:
+      kube_version:
+        description: 'Kubernetes version for validation'
+        type: string
+        default: '1.31.0'
+      strict:
+        description: 'Fails on extra properties'
+        type: boolean
+        default: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to compare changes against the base branch
+
+      - name: Install Tools
+        run: |
+          # Install yamllint for structural checks
+          sudo apt-get update && sudo apt-get install -y yamllint
+          
+          curl -L "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz" | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Get Changed Files
+        id: changed-files
+        run: |
+          # Detects Added (A) or Modified (M) .yaml/.yml files
+          # Handles both Pull Request events and direct commits
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.sha }}"
+          
+          if [ -n "$BASE_SHA" ]; then
+            FILES=$(git diff --name-only --diff-filter=AM $BASE_SHA $HEAD_SHA | grep -E '\.ya?ml$' | grep -v '^\.github/' | xargs -r)
+          else
+            # Fallback for non-PR events: check all yaml files
+            FILES=$(find . -name "*.yaml" -o -name "*.yml" | grep -v '^\.github/'| xargs -r)
+          fi
+          
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+          echo "Found files to process: $FILES"
+
+      - name: Run yamllint
+        if: steps.changed-files.outputs.files != ''
+        run: |
+          # line-length: disable -> allows long paths and URLs
+          # truthy: disable      -> allows GitHub 'on:' and 'yes/no' values
+          # document-start: disable -> removes the requirement for '---' at top of files
+          # new-line-at-end-of-file: Allow new line at EOF
+          yamllint -d "{
+            extends: relaxed, 
+            rules: {
+              line-length: disable, 
+              truthy: disable, 
+              document-start: disable,
+              new-line-at-end-of-file: disable
+            }
+          }" ${{ steps.changed-files.outputs.files }}
+
+      - name: Run Kubeconform
+        if: steps.changed-files.outputs.files != ''
+        run: |
+          # -summary: prints results overview
+          # -strict: fails if manifests have undocumented fields (typos)
+          # -ignore-missing-schemas: skips files without a known kind (like SealedSecrets)
+          kubeconform \
+            -summary \
+            ${{ inputs.strict && '-strict' || '' }} \
+            -kubernetes-version ${{ inputs.kube_version }} \
+            -ignore-missing-schemas \
+            ${{ steps.changed-files.outputs.files }}
