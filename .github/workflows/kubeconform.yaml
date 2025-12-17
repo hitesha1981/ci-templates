@@ -49,8 +49,19 @@ jobs:
       - name: Run yamllint
         if: steps.changed-files.outputs.files != ''
         run: |
-          # yamllint natively supports multi-document files separated by ---
-          yamllint ${{ steps.changed-files.outputs.files }}
+          # line-length: disable -> allows long paths and URLs
+          # truthy: disable      -> allows GitHub 'on:' and 'yes/no' values
+          # document-start: disable -> removes the requirement for '---' at top of files
+          # new-line-at-end-of-file: Allow new line at EOF
+          yamllint -d "{
+            extends: relaxed, 
+            rules: {
+              line-length: disable, 
+              truthy: disable, 
+              document-start: disable,
+              new-line-at-end-of-file: disable
+            }
+          }" ${{ steps.changed-files.outputs.files }}
 
       - name: Run Kubeconform
         if: steps.changed-files.outputs.files != ''
