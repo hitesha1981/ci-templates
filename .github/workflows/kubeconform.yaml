@@ -37,10 +37,10 @@ jobs:
           HEAD_SHA="${{ github.sha }}"
           
           if [ -n "$BASE_SHA" ]; then
-            FILES=$(git diff --name-only --diff-filter=AM $BASE_SHA $HEAD_SHA | grep -E '\.ya?ml$' | xargs)
+            FILES=$(git diff --name-only --diff-filter=AM $BASE_SHA $HEAD_SHA | grep -E '\.ya?ml$' | grep -v '^\.github/' | xargs -r)
           else
             # Fallback for non-PR events: check all yaml files
-            FILES=$(find . -name "*.yaml" -o -name "*.yml" | xargs)
+            FILES=$(find . -name "*.yaml" -o -name "*.yml" | grep -v '^\.github/'| xargs -r)
           fi
           
           echo "files=$FILES" >> $GITHUB_OUTPUT
